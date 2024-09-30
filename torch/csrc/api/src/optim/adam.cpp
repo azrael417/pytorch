@@ -184,6 +184,30 @@ void _single_tensor_adam(const TensorList& params_with_grad,
   }
 }      
 
+
+void _fused_tensor_adam(const TensorList& params,
+                        const TensorList& grads,
+                        const TensorList& exp_avgs,
+                        const TensorList& exp_avg_sqs,
+                        const TensorList& max_exp_avg_sqs,
+                        const TensorList& state_steps,
+		        Tensor grad_scale,
+			Tensor found_inf,
+                        bool amsgrad,
+                        bool has_complex,
+                        double beta1,
+                        double beta2,
+                        double lr,
+                        double weight_decay,
+                        double eps) {
+  if(params.size() == 0) return;
+
+  auto tensorlistlist = {params_with_grad, grads, exp_avgs, exp_avg_sqs, max_exp_avg_sqs, state_steps};
+  auto grouped_tensors = at::native::_group_tensors_by_first_tensors_device_and_dtype(tensorlistlist, false);
+
+  TORCH_CHECK(false, "Adam does not support fusing yet");
+}
+  
   
 Tensor Adam::step(LossClosure closure) {
   NoGradGuard no_grad;
@@ -209,7 +233,8 @@ Tensor Adam::step(LossClosure closure) {
       _single_tensor_adam(params_with_grad, grads, exp_avgs, max_exp_avg_sqs, state_steps,
 			  options.amsgrad(), has_complex, beta1, beta2, options.lr(), options.weight_decay(), options.eps());
     } else {
-      TORCH_CHECK(false, "Adam does not support fusing yet");
+      _fused_tensor_adam(params_with_grad, grads, exp_avgs, max_exp_avg_sqs, state_steps,
+			 options.amsgrad(), has_complex, beta1, beta2, options.lr(), options.weight_decay(), options.eps());
     }
   }
   return loss;
