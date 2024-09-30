@@ -70,6 +70,121 @@ void AdamParamState::serialize(torch::serialize::InputArchive& archive) {
   _TORCH_OPTIM_DESERIALIZE_TORCH_ARG(Tensor, max_exp_avg_sq);
 }
 
+bool Adam::_init_group(const OptimizerParamGroup& group,
+		       TensorList& params_with_grads,
+		       TensorList& grads,
+		       TensorList& exp_avgs,
+		       TensorList& exp_avg_sqs,
+		       TensorList& max_exp_avg_sqs,
+		       TensorList& state_steps) {
+
+  bool has_complex = false;
+  for (auto& p : group.params()) {
+    if (!p.grad().defined()) {
+      continue;
+    }
+    has_complex |= torch::is_complex(p);
+
+    params_with_grad.push_back(p);
+    TORCH_CHECK(!grad.is_sparse(), "Adam does not support sparse gradients" /*, please consider SparseAdam instead*/);
+    grads.push_back(p.grad);
+
+    auto param_state = state_.find(p.unsafeGetTensorImpl());
+    auto& options = static_cast<AdamOptions&>(group.options());
+
+    // Lazy State initialization
+    if (param_state == state_.end()) {
+      auto state = std::make_unique<AdamParamState>();
+
+      if (options.fused()) {
+	// check if device and datatype are supported
+	_device_dtype_check_for_fused(p);
+      }
+      state->step(0);
+      // Exponential moving average of gradient values
+      state->exp_avg(torch::zeros_like(p, MemoryFormat::Preserve));
+      // Exponential moving average of squared gradient values
+      state->exp_avg_sq(torch::zeros_like(p, MemoryFormat::Preserve));
+      if (options.amsgrad()) {
+        // Maintains max of all exp. moving avg. of sq. grad. values
+        state->max_exp_avg_sq(torch::zeros_like(p, MemoryFormat::Preserve));
+      }
+      state_[p.unsafeGetTensorImpl()] = std::move(state);
+    }
+
+    auto& state =
+      static_cast<AdamParamState&>(*state_[p.unsafeGetTensorImpl()]);
+
+    exp_avgs.push_back(state.exp_avg());
+    exp_avg_sqs.push_back(state.exp_avg_sq());
+
+     if (options.amsgrad()) {
+       max_exp_avg_sqs.push_back(state.max_exp_avg_sq());
+     }
+
+     torch::Tensor steptens;
+     if (options.fused()) {
+       steptens = torch::tensor({state.step()}, device=param.device(), dtype=torch::kFloat32);
+     } else {
+       steptens = torch::tensor({state.step()}, dtype=torch::kLong);
+     }
+     state_steps.push_back(steptens);
+  }
+
+  return has_complex;
+}
+  
+void _single_tensor_adam(const TensorList& params_with_grad,
+			 const TensorList& grads,
+			 const TensorList& exp_avgs,
+			 const TensorList& exp_avg_sqs,
+			 const TensorList& max_exp_avg_sqs,
+			 const TensorList& state_steps,
+			 bool amsgrad,
+			 bool has_complex,
+			 double beta1,
+			 double beta2,
+			 double lr,
+			 double weight_decay,
+			 double eps) {
+
+  for(int i=0; i<params_with_grad.size() ++i) {
+    auto p = params_with_grad[i];
+    auto grad = grad[i];
+    auto& exp_avg = exp_avgs[i];
+    auto& exp_avg_sq = exp_avg_sqs[i];
+
+    state_steps[i] += 1;
+    
+    auto bias_correction1 = 1 - std::pow(beta1, state_steps[i].item<long>());
+    auto bias_correction2 = 1 - std::pow(beta2, state_steps[i].item<long>());
+    
+    if (weight_decay != 0) {
+      grad = grad.add(p, weight_decay);
+    }
+    
+    // Decay the first and second moment running average coefficient
+    exp_avg.mul_(beta1).add_(grad, 1 - beta1);
+    exp_avg_sq.mul_(beta2).addcmul_(grad, grad, 1 - beta2);
+    
+    Tensor denom;
+    if (amsgrad) {
+      // Maintains the maximum of all 2nd moment running avg. till now
+      auto& max_exp_avg_sq = max_exp_avg_sqs[i];
+      torch::max_out(max_exp_avg_sq, exp_avg_sq, max_exp_avg_sq);
+      // Use the max. for normalizing running avg. of gradient
+      denom = (max_exp_avg_sq.sqrt() / sqrt(bias_correction2)).add_(eps);
+    } else {
+      denom =
+	(exp_avg_sq.sqrt() / sqrt(bias_correction2)).add_(eps);
+    }
+    
+    auto step_size = lr / bias_correction1;
+    p.addcdiv_(exp_avg, denom, -step_size);
+  }
+}      
+
+  
 Tensor Adam::step(LossClosure closure) {
   NoGradGuard no_grad;
   Tensor loss = {};
@@ -77,66 +192,24 @@ Tensor Adam::step(LossClosure closure) {
     at::AutoGradMode enable_grad(true);
     loss = closure();
   }
+
+  std::cout << "PERFORMING A STEP WITH MY TWEAKED ADAM" << std::endl;
+  
   for (auto& group : param_groups_) {
-    for (auto& p : group.params()) {
-      if (!p.grad().defined()) {
-        continue;
-      }
-      auto grad = p.grad();
-      TORCH_CHECK(!grad.is_sparse(), "Adam does not support sparse gradients" /*, please consider SparseAdam instead*/);
-      auto param_state = state_.find(p.unsafeGetTensorImpl());
-      auto& options = static_cast<AdamOptions&>(group.options());
 
-      // State initialization
-      if (param_state == state_.end()) {
-        auto state = std::make_unique<AdamParamState>();
-        state->step(0);
-        // Exponential moving average of gradient values
-        state->exp_avg(torch::zeros_like(p, MemoryFormat::Preserve));
-        // Exponential moving average of squared gradient values
-        state->exp_avg_sq(torch::zeros_like(p, MemoryFormat::Preserve));
-        if (options.amsgrad()) {
-          // Maintains max of all exp. moving avg. of sq. grad. values
-          state->max_exp_avg_sq(torch::zeros_like(p, MemoryFormat::Preserve));
-        }
-        state_[p.unsafeGetTensorImpl()] = std::move(state);
-      }
-
-      auto& state =
-          static_cast<AdamParamState&>(*state_[p.unsafeGetTensorImpl()]);
-      auto& exp_avg = state.exp_avg();
-      auto& exp_avg_sq = state.exp_avg_sq();
-      auto& max_exp_avg_sq = state.max_exp_avg_sq();
-
-      state.step(state.step() + 1);
-      auto beta1 = std::get<0>(options.betas());
-      auto beta2 = std::get<1>(options.betas());
-
-      auto bias_correction1 = 1 - std::pow(beta1, state.step());
-      auto bias_correction2 = 1 - std::pow(beta2, state.step());
-
-      if (options.weight_decay() != 0) {
-        grad = grad.add(p, options.weight_decay());
-      }
-
-      // Decay the first and second moment running average coefficient
-      exp_avg.mul_(beta1).add_(grad, 1 - beta1);
-      exp_avg_sq.mul_(beta2).addcmul_(grad, grad, 1 - beta2);
-
-      Tensor denom;
-      if (options.amsgrad()) {
-        // Maintains the maximum of all 2nd moment running avg. till now
-        torch::max_out(max_exp_avg_sq, exp_avg_sq, max_exp_avg_sq);
-        // Use the max. for normalizing running avg. of gradient
-        denom = (max_exp_avg_sq.sqrt() / sqrt(bias_correction2))
-                    .add_(options.eps());
-      } else {
-        denom =
-            (exp_avg_sq.sqrt() / sqrt(bias_correction2)).add_(options.eps());
-      }
-
-      auto step_size = options.lr() / bias_correction1;
-      p.addcdiv_(exp_avg, denom, -step_size);
+    // init the group
+    TensorList params_with_grad, grads, exp_avgs, exp_avg_sqs, max_exp_avg_sqs, state_steps;
+    auto& options = static_cast<AdamOptions&>(group.options());
+    auto beta1 = std::get<0>(options.betas());
+    auto beta2 = std::get<1>(options.betas());
+    
+    bool has_complex = _init_group(group, params_with_grad, grads, exp_avgs, exp_avg_sqs, max_exp_avg_sqs, state_steps);
+    
+    if (!options.fused()) {
+      _single_tensor_adam(params_with_grad, grads, exp_avgs, max_exp_avg_sqs, state_steps,
+			  options.amsgrad(), has_complex, beta1, beta2, options.lr(), options.weight_decay(), options.eps());
+    } else {
+      TORCH_CHECK(false, "Adam does not support fusing yet");
     }
   }
   return loss;
