@@ -84,6 +84,15 @@ class TORCH_API Adam : public Optimizer {
   void load(serialize::InputArchive& archive) override;
 
  private:
+
+  bool _init_group(const OptimizerParamGroup& group,
+		   TensorList& params_with_grads,
+		   TensorList& grads,
+		   TensorList& exp_avgs,
+		   TensorList& exp_avg_sqs,
+		   TensorList& max_exp_avg_sqs,
+		   TensorList& state_steps);
+  
   template <typename Self, typename Archive>
   static void serialize(Self& self, Archive& archive) {
     _TORCH_OPTIM_SERIALIZE_WITH_TEMPLATE_ARG(Adam);

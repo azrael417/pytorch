@@ -12,6 +12,7 @@
 #include <functional>
 
 // fused optimizers
+#include <ATen/native/ForeachUtils.h>
 #include <ATen/native/FusedAdam.h>
 #ifndef AT_PER_OPERATOR_HEADERS
 #include <ATen/Functions.h>
@@ -20,7 +21,7 @@
 #include <ATen/ops/_fused_adam.h>
 #include <ATen/ops/_fused_adam_native.h>
 #endif
-//#include <ATen/native/cuda/fused_adam_impl.cuh>
+#include <ATen/native/cuda/fused_adam_impl.cuh>
 
 namespace torch {
 namespace optim {
@@ -147,10 +148,10 @@ bool Adam::_init_group(const OptimizerParamGroup& group,
   
 void _single_tensor_adam(const TensorList& params_with_grad,
 			 const TensorList& grads,
-			 const TensorList& exp_avgs,
-			 const TensorList& exp_avg_sqs,
-			 const TensorList& max_exp_avg_sqs,
-			 const TensorList& state_steps,
+			 TensorList& exp_avgs,
+			 TensorList& exp_avg_sqs,
+			 TensorList& max_exp_avg_sqs,
+			 TensorList& state_steps,
 			 bool amsgrad,
 			 bool has_complex,
 			 double beta1,
@@ -159,13 +160,15 @@ void _single_tensor_adam(const TensorList& params_with_grad,
 			 double weight_decay,
 			 double eps) {
 
-  for(int i=0; i<params_with_grad.size() ++i) {
+  for(int i=0; i<params_with_grad.size(); ++i) {
     auto p = params_with_grad[i];
-    auto grad = grad[i];
+    auto grad = grads[i];
     auto& exp_avg = exp_avgs[i];
     auto& exp_avg_sq = exp_avg_sqs[i];
+    auto& state_step = state_steps[i];
 
-    state_steps[i] += 1;
+    // increment state counter
+    state_step += 1;
     
     auto bias_correction1 = 1 - std::pow(beta1, state_steps[i].item<long>());
     auto bias_correction2 = 1 - std::pow(beta2, state_steps[i].item<long>());
@@ -198,10 +201,10 @@ void _single_tensor_adam(const TensorList& params_with_grad,
 
 void _fused_tensor_adam(const TensorList& params,
                         const TensorList& grads,
-                        const TensorList& exp_avgs,
-                        const TensorList& exp_avg_sqs,
-                        const TensorList& max_exp_avg_sqs,
-                        const TensorList& state_steps,
+                        TensorList& exp_avgs,
+                        TensorList& exp_avg_sqs,
+                        TensorList& max_exp_avg_sqs,
+                        TensorList& state_steps,
                         bool amsgrad,
                         bool has_complex,
                         double beta1,
@@ -211,7 +214,7 @@ void _fused_tensor_adam(const TensorList& params,
                         double eps) {
   if(params.size() == 0) return;
 
-  auto tensorlistlist = {params_with_grad, grads, exp_avgs, exp_avg_sqs, max_exp_avg_sqs, state_steps};
+  auto tensorlistlist = {params, grads, exp_avgs, exp_avg_sqs, max_exp_avg_sqs, state_steps};
   auto grouped_tensors = at::native::_group_tensors_by_first_tensors_device_and_dtype(tensorlistlist, false);
   for (auto& [key, value]: grouped_tensors) {
     auto device_tensorlistlist = std::get<0>(value);
