@@ -90,6 +90,8 @@ bool Adam::_init_group(const OptimizerParamGroup& group,
 		       TensorList& max_exp_avg_sqs,
 		       TensorList& state_steps) {
 
+  std::vector<Tensor> params_with_grads_list, grads_list, exp_avgs_list, exp_avg_sqs_list, max_exp_avg_sqs_list, state_steps_list;
+
   bool has_complex = false;
   for (auto& p : group.params()) {
     if (!p.grad().defined()) {
@@ -97,9 +99,9 @@ bool Adam::_init_group(const OptimizerParamGroup& group,
     }
     has_complex |= torch::is_complex(p);
 
-    params_with_grad.push_back(p);
-    TORCH_CHECK(!grad.is_sparse(), "Adam does not support sparse gradients" /*, please consider SparseAdam instead*/);
-    grads.push_back(p.grad);
+    params_with_grads_list.push_back(p);
+    TORCH_CHECK(!p.grad.is_sparse(), "Adam does not support sparse gradients" /*, please consider SparseAdam instead*/);
+    grads_list.push_back(p.grad);
 
     auto param_state = state_.find(p.unsafeGetTensorImpl());
     auto& options = static_cast<AdamOptions&>(group.options());
@@ -127,21 +129,28 @@ bool Adam::_init_group(const OptimizerParamGroup& group,
     auto& state =
       static_cast<AdamParamState&>(*state_[p.unsafeGetTensorImpl()]);
 
-    exp_avgs.push_back(state.exp_avg());
-    exp_avg_sqs.push_back(state.exp_avg_sq());
+    exp_avgs_list.push_back(state.exp_avg());
+    exp_avg_sqs_list.push_back(state.exp_avg_sq());
 
      if (options.amsgrad()) {
-       max_exp_avg_sqs.push_back(state.max_exp_avg_sq());
+       max_exp_avg_sqs_list.push_back(state.max_exp_avg_sq());
      }
 
      torch::Tensor steptens;
      if (options.fused()) {
-       steptens = torch::tensor({state.step()}, device=param.device(), dtype=torch::kFloat32);
+       steptens = torch::tensor({state.step()}, device=p.device(), dtype=torch::kFloat32);
      } else {
        steptens = torch::tensor({state.step()}, dtype=torch::kLong);
      }
-     state_steps.push_back(steptens);
+     state_steps_list.push_back(steptens);
   }
+
+  params_with_grads = TensorList(params_with_grads_list);
+  grads = TensorList(grads_list);
+  exp_avgs = TensorList(exp_avgs_list);
+  exp_avg_sqs = TensorList(exp_avg_sqs_list);
+  max_exp_avg_sqs = TensorList(max_exp_avg_sqs_list);
+  state_steps = TensorList(state_steps_list);
 
   return has_complex;
 }
@@ -160,7 +169,7 @@ void _single_tensor_adam(const TensorList& params_with_grad,
 			 double weight_decay,
 			 double eps) {
 
-  for(int i=0; i<params_with_grad.size(); ++i) {
+  for(size_t i=0; i<params_with_grad.size(); ++i) {
     auto p = params_with_grad[i];
     auto grad = grads[i];
     auto& exp_avg = exp_avgs[i];
