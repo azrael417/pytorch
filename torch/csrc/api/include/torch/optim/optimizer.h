@@ -32,6 +32,20 @@ class InputArchive;
 namespace torch {
 namespace optim {
 
+void _device_dtype_check_for_fused(const Tensor& param, bool cuda_unsupported = false) {
+  std::vector<std::string> supported_devices = {"mps", "xpu", "cpu"};
+  if (!cuda_unsupported) {
+    supported_devices.push_back("cuda");
+  }
+
+  bool supported = torch::is_floating_point(param);
+  auto pdevice = param.device().type();
+  auto has_device = [](std::string dev) { return dev == pdevice; };
+  supported |= std::find_if(supported_devices.begin(), supported_devices.end(), had_device);
+
+  TORCH_CHECK(!supported, "`fused=True` requires all the params to be floating point Tensors of supported devices");
+}
+
 class TORCH_API OptimizerParamState {
  public:
   OptimizerParamState() = default;
