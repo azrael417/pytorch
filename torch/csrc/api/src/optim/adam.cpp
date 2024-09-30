@@ -11,6 +11,9 @@
 #include <cmath>
 #include <functional>
 
+// fused optimizers
+#include <ATen/native/cuda/fused_adam_impl.cuh>
+
 namespace torch {
 namespace optim {
 
@@ -191,8 +194,6 @@ void _fused_tensor_adam(const TensorList& params,
                         const TensorList& exp_avg_sqs,
                         const TensorList& max_exp_avg_sqs,
                         const TensorList& state_steps,
-		        Tensor grad_scale,
-			Tensor found_inf,
                         bool amsgrad,
                         bool has_complex,
                         double beta1,
@@ -204,8 +205,48 @@ void _fused_tensor_adam(const TensorList& params,
 
   auto tensorlistlist = {params_with_grad, grads, exp_avgs, exp_avg_sqs, max_exp_avg_sqs, state_steps};
   auto grouped_tensors = at::native::_group_tensors_by_first_tensors_device_and_dtype(tensorlistlist, false);
+  for (auto& [key, value]: grouped_tensors) {
+    auto device_tensorlistlist = std::get<0>(value);
+    auto device = std::get<0>(key);
+    auto device_params = device_tensorlistlist[0];
+    auto device_grads = device_tensorlistlist[1];
+    auto device_exp_avgs = device_tensorlistlist[2];
+    auto device_exp_avg_sqs = device_tensorlistlist[3];
+    auto device_max_exp_avg_sqs = device_tensorlistlist[4];
+    auto device_state_steps = device_tensorlistlist[5];
 
-  TORCH_CHECK(false, "Adam does not support fusing yet");
+    if(has_complex) {
+      device_params = torch::view_as_real(device_params);
+      device_grads = torch::view_as_real(device_grads);
+      device_exp_avgs = torch::view_as_real(device_exp_avgs);
+      device_exp_avg_sqs = torch::view_as_real(device_exp_avg_sqs);
+      if(amsgrad) {
+	device_max_exp_avg_sqs = torch::view_as_real(device_max_exp_avg_sqs);
+      }
+    }
+
+    // increase state steps:
+    for(auto& device_state_step: device_state_steps) {
+      device_state_step += 1;
+    }
+    auto lr_tensor = torch::tensor({lr});
+
+    if(device.type == "cuda") {
+      _fused_adam_cuda_impl_(
+			     device_params,
+			     device_grads,
+			     device_exp_avgs,
+			     device_exp_avg_sqs,
+			     device_state_steps,
+			     lr_tensor,
+			     beta1,
+			     beta2,
+			     weight_decay,
+			     eps,
+			     false);
+    } else {
+      TORCH_CHECK(false, "Adam does not support fusing on device " + device.type + " yet");
+    }
 }
   
   
