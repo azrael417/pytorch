@@ -229,9 +229,9 @@ void _fused_tensor_adam(const TensorList& params,
     for(auto& device_state_step: device_state_steps) {
       device_state_step += 1;
     }
-    auto lr_tensor = torch::tensor({lr});
+    auto lr_tensor = torch::tensor({lr}, TensorOptions().device(device).dtype(torch::kDouble));
 
-    if(device.type == "cuda") {
+    if (device.type == "cuda") {
       _fused_adam_cuda_impl_(
 			     device_params,
 			     device_grads,
@@ -244,6 +244,20 @@ void _fused_tensor_adam(const TensorList& params,
 			     weight_decay,
 			     eps,
 			     false);
+    } else if (device.type == "cpu") {
+      _fused_adam_kernel_cpu_(
+			      device_params,
+			      device_grads,
+			      device_exp_avgs,
+			      device_exp_avg_sqs,
+			      max_exp_avg_sqs,
+			      device_state_steps,
+			      lr,
+			      beta1,
+			      beta2,
+			      weight_decay,
+			      eps,
+			      false);
     } else {
       TORCH_CHECK(false, "Adam does not support fusing on device " + device.type + " yet");
     }
