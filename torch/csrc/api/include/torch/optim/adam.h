@@ -25,6 +25,7 @@ struct TORCH_API AdamOptions : public OptimizerCloneableOptions<AdamOptions> {
   TORCH_ARG(double, eps) = 1e-8;
   TORCH_ARG(double, weight_decay) = 0;
   TORCH_ARG(bool, amsgrad) = false;
+  TORCH_ARG(bool, fused) = false;
 
  public:
   void serialize(torch::serialize::InputArchive& archive) override;
