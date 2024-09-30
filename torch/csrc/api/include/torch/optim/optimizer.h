@@ -39,7 +39,7 @@ void _device_dtype_check_for_fused(const Tensor& param, bool cuda_unsupported = 
   }
 
   bool supported = torch::is_floating_point(param);
-  auto pdevice = param.device().type();
+  auto pdevice = c10::DeviceTypeName(param.device().type(), true);
   auto has_device = [&pdevice](std::string dev) { return dev == pdevice; };
   supported |= std::find_if(supported_devices.begin(), supported_devices.end(), has_device);
 
