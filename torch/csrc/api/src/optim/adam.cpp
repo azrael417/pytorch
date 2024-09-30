@@ -12,7 +12,15 @@
 #include <functional>
 
 // fused optimizers
-#include <ATen/native/cuda/fused_adam_impl.cuh>
+#include <ATen/native/FusedAdam.h>
+#ifndef AT_PER_OPERATOR_HEADERS
+#include <ATen/Functions.h>
+#include <ATen/NativeFunctions.h>
+#else
+#include <ATen/ops/_fused_adam.h>
+#include <ATen/ops/_fused_adam_native.h>
+#endif
+//#include <ATen/native/cuda/fused_adam_impl.cuh>
 
 namespace torch {
 namespace optim {
@@ -232,32 +240,32 @@ void _fused_tensor_adam(const TensorList& params,
     auto lr_tensor = torch::tensor({lr}, TensorOptions().device(device).dtype(torch::kDouble));
 
     if (device.type == "cuda") {
-      _fused_adam_cuda_impl_(
-			     device_params,
-			     device_grads,
-			     device_exp_avgs,
-			     device_exp_avg_sqs,
-			     device_state_steps,
-			     lr_tensor,
-			     beta1,
-			     beta2,
-			     weight_decay,
-			     eps,
-			     false);
+      at::native::_fused_adam_cuda_impl_(
+					 device_params,
+					 device_grads,
+					 device_exp_avgs,
+					 device_exp_avg_sqs,
+					 device_state_steps,
+					 lr_tensor,
+					 beta1,
+					 beta2,
+					 weight_decay,
+					 eps,
+					 false);
     } else if (device.type == "cpu") {
-      _fused_adam_kernel_cpu_(
-			      device_params,
-			      device_grads,
-			      device_exp_avgs,
-			      device_exp_avg_sqs,
-			      max_exp_avg_sqs,
-			      device_state_steps,
-			      lr,
-			      beta1,
-			      beta2,
-			      weight_decay,
-			      eps,
-			      false);
+      at::native::_fused_adam_kernel_cpu_(
+					  device_params,
+					  device_grads,
+					  device_exp_avgs,
+					  device_exp_avg_sqs,
+					  max_exp_avg_sqs,
+					  device_state_steps,
+					  lr,
+					  beta1,
+					  beta2,
+					  weight_decay,
+					  eps,
+					  false);
     } else {
       TORCH_CHECK(false, "Adam does not support fusing on device " + device.type + " yet");
     }
