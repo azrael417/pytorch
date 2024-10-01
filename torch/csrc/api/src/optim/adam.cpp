@@ -289,7 +289,7 @@ Tensor Adam::step(LossClosure closure) {
   for (auto& group : param_groups_) {
 
     // init the group
-    TensorList params_with_grad, grads, exp_avgs, exp_avg_sqs, max_exp_avg_sqs, state_steps;
+    std::vector<Tensor> params_with_grad, grads, exp_avgs, exp_avg_sqs, max_exp_avg_sqs, state_steps;
     auto& options = static_cast<AdamOptions&>(group.options());
     auto beta1 = std::get<0>(options.betas());
     auto beta2 = std::get<1>(options.betas());
