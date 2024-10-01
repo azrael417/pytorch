@@ -161,11 +161,11 @@ void _single_tensor_adam(const std::vector<std::optional<Tensor>>& params_with_g
 			 double eps) {
 
   for(size_t i=0; i<params_with_grad.size(); ++i) {
-    auto p = params_with_grad[i];
-    auto grad = grads[i];
-    auto& exp_avg = exp_avgs[i];
-    auto& exp_avg_sq = exp_avg_sqs[i];
-    auto& state_step = state_steps[i];
+    auto p = params_with_grad[i].value();
+    auto grad = grads[i].value();
+    auto& exp_avg = exp_avgs[i].value();
+    auto& exp_avg_sq = exp_avg_sqs[i].value();
+    auto& state_step = state_steps[i].value();
 
     // increment state counter
     state_step.add_(1);
@@ -184,7 +184,7 @@ void _single_tensor_adam(const std::vector<std::optional<Tensor>>& params_with_g
     Tensor denom;
     if (amsgrad) {
       // Maintains the maximum of all 2nd moment running avg. till now
-      auto& max_exp_avg_sq = max_exp_avg_sqs[i];
+      auto& max_exp_avg_sq = max_exp_avg_sqs[i].value();
       torch::max_out(max_exp_avg_sq, exp_avg_sq, max_exp_avg_sq);
       // Use the max. for normalizing running avg. of gradient
       denom = (max_exp_avg_sq.sqrt() / sqrt(bias_correction2)).add_(eps);
@@ -214,7 +214,7 @@ void _fused_tensor_adam(const std::vector<std::optional<Tensor>>& params,
                         double eps) {
   if(params.size() == 0) return;
 
-  nested_optional_tensorvec_t tensorlistlist{params, grads, exp_avgs, exp_avg_sqs, max_exp_avg_sqs, state_steps};
+  at::native::{anonymous}::nested_optional_tensorvec_t tensorlistlist{params, grads, exp_avgs, exp_avg_sqs, max_exp_avg_sqs, state_steps};
   auto grouped_tensors = at::native::_group_tensors_by_first_tensors_device_and_dtype(tensorlistlist, false);
   for (auto& [key, value]: grouped_tensors) {
     auto device_tensorlistlist = std::get<0>(value);
