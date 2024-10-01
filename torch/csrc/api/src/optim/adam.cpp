@@ -170,8 +170,8 @@ void _single_tensor_adam(const std::vector<std::optional<Tensor>>& params_with_g
     // increment state counter
     state_step.add_(1);
     
-    auto bias_correction1 = 1 - std::pow(beta1, state_steps[i].item<long>());
-    auto bias_correction2 = 1 - std::pow(beta2, state_steps[i].item<long>());
+    auto bias_correction1 = 1 - std::pow(beta1, state_step.item<long>());
+    auto bias_correction2 = 1 - std::pow(beta2, state_step.item<long>());
     
     if (weight_decay != 0) {
       grad = grad.add(p, weight_decay);
@@ -214,7 +214,7 @@ void _fused_tensor_adam(const std::vector<std::optional<Tensor>>& params,
                         double eps) {
   if(params.size() == 0) return;
 
-  at::native::{anonymous}::nested_optional_tensorvec_t tensorlistlist{params, grads, exp_avgs, exp_avg_sqs, max_exp_avg_sqs, state_steps};
+  std::vector<std::vector<std::optional<Tensor>>> tensorlistlist{params, grads, exp_avgs, exp_avg_sqs, max_exp_avg_sqs, state_steps};
   auto grouped_tensors = at::native::_group_tensors_by_first_tensors_device_and_dtype(tensorlistlist, false);
   for (auto& [key, value]: grouped_tensors) {
     auto device_tensorlistlist = std::get<0>(value);
