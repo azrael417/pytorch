@@ -214,7 +214,7 @@ void _fused_tensor_adam(const std::vector<Tensor>& params,
                         double eps) {
   if(params.size() == 0) return;
 
-  auto tensorlistlist = {params, grads, exp_avgs, exp_avg_sqs, max_exp_avg_sqs, state_steps};
+  std::vector<std::vector<Tensor>> tensorlistlist = {params, grads, exp_avgs, exp_avg_sqs, max_exp_avg_sqs, state_steps};
   auto grouped_tensors = at::native::_group_tensors_by_first_tensors_device_and_dtype(tensorlistlist, false);
   for (auto& [key, value]: grouped_tensors) {
     auto device_tensorlistlist = std::get<0>(value);
