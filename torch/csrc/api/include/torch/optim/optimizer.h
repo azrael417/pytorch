@@ -38,7 +38,7 @@ void _device_dtype_check_for_fused(const Tensor& param, bool cuda_unsupported = 
     supported_devices.push_back("cuda");
   }
 
-  bool supported = at::is_floating_point(param);
+  bool supported = param.dtype().is_floating_point();
   auto pdevice = c10::DeviceTypeName(param.device().type(), true);
   auto has_device = [&pdevice](std::string dev) { return dev == pdevice; };
   supported |= (std::find_if(supported_devices.begin(), supported_devices.end(), has_device) != supported_devices.end());

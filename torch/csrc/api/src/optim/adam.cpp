@@ -100,8 +100,8 @@ bool Adam::_init_group(const OptimizerParamGroup& group,
     has_complex |= torch::is_complex(p);
 
     params_with_grads_list.push_back(p);
-    TORCH_CHECK(!p.grad.is_sparse(), "Adam does not support sparse gradients" /*, please consider SparseAdam instead*/);
-    grads_list.push_back(p.grad);
+    TORCH_CHECK(!p.grad().is_sparse(), "Adam does not support sparse gradients" /*, please consider SparseAdam instead*/);
+    grads_list.push_back(p.grad());
 
     auto param_state = state_.find(p.unsafeGetTensorImpl());
     auto& options = static_cast<AdamOptions&>(group.options());
@@ -138,9 +138,9 @@ bool Adam::_init_group(const OptimizerParamGroup& group,
 
      torch::Tensor steptens;
      if (options.fused()) {
-       steptens = torch::tensor({state.step()}, device=p.device(), dtype=torch::kFloat32);
+       steptens = torch::tensor({state.step()}, TensorOptions().device(p.device()).dtype(torch::kFloat32));
      } else {
-       steptens = torch::tensor({state.step()}, dtype=torch::kLong);
+       steptens = torch::tensor({state.step()}, TensorOptions().dtype(torch::kLong));
      }
      state_steps_list.push_back(steptens);
   }
@@ -177,7 +177,7 @@ void _single_tensor_adam(const TensorList& params_with_grad,
     auto& state_step = state_steps[i];
 
     // increment state counter
-    state_step += 1;
+    state_step.add_(1);
     
     auto bias_correction1 = 1 - std::pow(beta1, state_steps[i].item<long>());
     auto bias_correction2 = 1 - std::pow(beta2, state_steps[i].item<long>());
