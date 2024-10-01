@@ -82,15 +82,13 @@ void AdamParamState::serialize(torch::serialize::InputArchive& archive) {
   _TORCH_OPTIM_DESERIALIZE_TORCH_ARG(Tensor, max_exp_avg_sq);
 }
 
-bool Adam::_init_group(const OptimizerParamGroup& group,
-		       TensorList& params_with_grads,
-		       TensorList& grads,
-		       TensorList& exp_avgs,
-		       TensorList& exp_avg_sqs,
-		       TensorList& max_exp_avg_sqs,
-		       TensorList& state_steps) {
-
-  std::vector<Tensor> params_with_grads_list, grads_list, exp_avgs_list, exp_avg_sqs_list, max_exp_avg_sqs_list, state_steps_list;
+bool Adam::_init_group(OptimizerParamGroup& group,
+		       std::vector<Tensor>& params_with_grads,
+		       std::vector<Tensor>& grads,
+		       std::vector<Tensor>& exp_avgs,
+		       std::vector<Tensor>& exp_avg_sqs,
+		       std::vector<Tensor>& max_exp_avg_sqs,
+		       std::vector<Tensor>& state_steps) {
 
   bool has_complex = false;
   for (auto& p : group.params()) {
@@ -99,9 +97,9 @@ bool Adam::_init_group(const OptimizerParamGroup& group,
     }
     has_complex |= torch::is_complex(p);
 
-    params_with_grads_list.push_back(p);
+    params_with_grads.push_back(p);
     TORCH_CHECK(!p.grad().is_sparse(), "Adam does not support sparse gradients" /*, please consider SparseAdam instead*/);
-    grads_list.push_back(p.grad());
+    grads.push_back(p.grad());
 
     auto param_state = state_.find(p.unsafeGetTensorImpl());
     auto& options = static_cast<AdamOptions&>(group.options());
@@ -129,11 +127,11 @@ bool Adam::_init_group(const OptimizerParamGroup& group,
     auto& state =
       static_cast<AdamParamState&>(*state_[p.unsafeGetTensorImpl()]);
 
-    exp_avgs_list.push_back(state.exp_avg());
-    exp_avg_sqs_list.push_back(state.exp_avg_sq());
+    exp_avgs.push_back(state.exp_avg());
+    exp_avg_sqs.push_back(state.exp_avg_sq());
 
      if (options.amsgrad()) {
-       max_exp_avg_sqs_list.push_back(state.max_exp_avg_sq());
+       max_exp_avg_sqs.push_back(state.max_exp_avg_sq());
      }
 
      torch::Tensor steptens;
@@ -142,25 +140,18 @@ bool Adam::_init_group(const OptimizerParamGroup& group,
      } else {
        steptens = torch::tensor({state.step()}, TensorOptions().dtype(torch::kLong));
      }
-     state_steps_list.push_back(steptens);
+     state_steps.push_back(steptens);
   }
-
-  params_with_grads = TensorList(params_with_grads_list);
-  grads = TensorList(grads_list);
-  exp_avgs = TensorList(exp_avgs_list);
-  exp_avg_sqs = TensorList(exp_avg_sqs_list);
-  max_exp_avg_sqs = TensorList(max_exp_avg_sqs_list);
-  state_steps = TensorList(state_steps_list);
 
   return has_complex;
 }
   
-void _single_tensor_adam(const TensorList& params_with_grad,
-			 const TensorList& grads,
-			 TensorList& exp_avgs,
-			 TensorList& exp_avg_sqs,
-			 TensorList& max_exp_avg_sqs,
-			 TensorList& state_steps,
+void _single_tensor_adam(const std::vector<Tensor>& params_with_grad,
+			 const std::vector<Tensor>& grads,
+			 std::vector<Tensor>& exp_avgs,
+			 std::vector<Tensor>& exp_avg_sqs,
+			 std::vector<Tensor>& max_exp_avg_sqs,
+			 std::vector<Tensor>& state_steps,
 			 bool amsgrad,
 			 bool has_complex,
 			 double beta1,
@@ -208,12 +199,12 @@ void _single_tensor_adam(const TensorList& params_with_grad,
 }      
 
 
-void _fused_tensor_adam(const TensorList& params,
-                        const TensorList& grads,
-                        TensorList& exp_avgs,
-                        TensorList& exp_avg_sqs,
-                        TensorList& max_exp_avg_sqs,
-                        TensorList& state_steps,
+void _fused_tensor_adam(const std::vector<Tensor>& params,
+                        const std::vector<Tensor>& grads,
+                        std::vector<Tensor>& exp_avgs,
+                        std::vector<Tensor>& exp_avg_sqs,
+                        std::vector<Tensor>& max_exp_avg_sqs,
+                        std::vector<Tensor>& state_steps,
                         bool amsgrad,
                         bool has_complex,
                         double beta1,
@@ -223,7 +214,7 @@ void _fused_tensor_adam(const TensorList& params,
                         double eps) {
   if(params.size() == 0) return;
 
-  auto tensorlistlist = {params, grads, exp_avgs, exp_avg_sqs, max_exp_avg_sqs, state_steps};
+  nested_optional_tensorvec_t tensorlistlist = {params, grads, exp_avgs, exp_avg_sqs, max_exp_avg_sqs, state_steps};
   auto grouped_tensors = at::native::_group_tensors_by_first_tensors_device_and_dtype(tensorlistlist, false);
   for (auto& [key, value]: grouped_tensors) {
     auto device_tensorlistlist = std::get<0>(value);
