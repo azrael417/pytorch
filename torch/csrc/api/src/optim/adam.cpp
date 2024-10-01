@@ -83,12 +83,12 @@ void AdamParamState::serialize(torch::serialize::InputArchive& archive) {
 }
 
 bool Adam::_init_group(OptimizerParamGroup& group,
-		       std::vector<Tensor>& params_with_grads,
-		       std::vector<Tensor>& grads,
-		       std::vector<Tensor>& exp_avgs,
-		       std::vector<Tensor>& exp_avg_sqs,
-		       std::vector<Tensor>& max_exp_avg_sqs,
-		       std::vector<Tensor>& state_steps) {
+		       std::vector<std::optional<Tensor>>& params_with_grads,
+		       std::vector<std::optional<Tensor>>& grads,
+		       std::vector<std::optional<Tensor>>& exp_avgs,
+		       std::vector<std::optional<Tensor>>& exp_avg_sqs,
+		       std::vector<std::optional<Tensor>>& max_exp_avg_sqs,
+		       std::vector<std::optional<Tensor>>& state_steps) {
 
   bool has_complex = false;
   for (auto& p : group.params()) {
@@ -146,12 +146,12 @@ bool Adam::_init_group(OptimizerParamGroup& group,
   return has_complex;
 }
   
-void _single_tensor_adam(const std::vector<Tensor>& params_with_grad,
-			 const std::vector<Tensor>& grads,
-			 std::vector<Tensor>& exp_avgs,
-			 std::vector<Tensor>& exp_avg_sqs,
-			 std::vector<Tensor>& max_exp_avg_sqs,
-			 std::vector<Tensor>& state_steps,
+void _single_tensor_adam(const std::vector<std::optional<Tensor>>& params_with_grad,
+			 const std::vector<std::optional<Tensor>>& grads,
+			 std::vector<std::optional<Tensor>>& exp_avgs,
+			 std::vector<std::optional<Tensor>>& exp_avg_sqs,
+			 std::vector<std::optional<Tensor>>& max_exp_avg_sqs,
+			 std::vector<std::optional<Tensor>>& state_steps,
 			 bool amsgrad,
 			 bool has_complex,
 			 double beta1,
@@ -199,12 +199,12 @@ void _single_tensor_adam(const std::vector<Tensor>& params_with_grad,
 }      
 
 
-void _fused_tensor_adam(const std::vector<Tensor>& params,
-                        const std::vector<Tensor>& grads,
-                        std::vector<Tensor>& exp_avgs,
-                        std::vector<Tensor>& exp_avg_sqs,
-                        std::vector<Tensor>& max_exp_avg_sqs,
-                        std::vector<Tensor>& state_steps,
+void _fused_tensor_adam(const std::vector<std::optional<Tensor>>& params,
+                        const std::vector<std::optional<Tensor>>& grads,
+                        std::vector<std::optional<Tensor>>& exp_avgs,
+                        std::vector<std::optional<Tensor>>& exp_avg_sqs,
+                        std::vector<std::optional<Tensor>>& max_exp_avg_sqs,
+                        std::vector<std::optional<Tensor>>& state_steps,
                         bool amsgrad,
                         bool has_complex,
                         double beta1,
@@ -214,7 +214,7 @@ void _fused_tensor_adam(const std::vector<Tensor>& params,
                         double eps) {
   if(params.size() == 0) return;
 
-  std::vector<std::vector<Tensor>> tensorlistlist{params, grads, exp_avgs, exp_avg_sqs, max_exp_avg_sqs, state_steps};
+  nested_optional_tensorvec_t tensorlistlist{params, grads, exp_avgs, exp_avg_sqs, max_exp_avg_sqs, state_steps};
   auto grouped_tensors = at::native::_group_tensors_by_first_tensors_device_and_dtype(tensorlistlist, false);
   for (auto& [key, value]: grouped_tensors) {
     auto device_tensorlistlist = std::get<0>(value);
@@ -289,7 +289,7 @@ Tensor Adam::step(LossClosure closure) {
   for (auto& group : param_groups_) {
 
     // init the group
-    std::vector<Tensor> params_with_grad, grads, exp_avgs, exp_avg_sqs, max_exp_avg_sqs, state_steps;
+    std::vector<std::optional<Tensor>> params_with_grad, grads, exp_avgs, exp_avg_sqs, max_exp_avg_sqs, state_steps;
     auto& options = static_cast<AdamOptions&>(group.options());
     auto beta1 = std::get<0>(options.betas());
     auto beta2 = std::get<1>(options.betas());
@@ -297,10 +297,10 @@ Tensor Adam::step(LossClosure closure) {
     bool has_complex = _init_group(group, params_with_grad, grads, exp_avgs, exp_avg_sqs, max_exp_avg_sqs, state_steps);
     
     if (!options.fused()) {
-      _single_tensor_adam(params_with_grad, grads, exp_avgs, max_exp_avg_sqs, state_steps,
+      _single_tensor_adam(params_with_grad, grads, exp_avgs, exp_avg_sqs, max_exp_avg_sqs, state_steps,
 			  options.amsgrad(), has_complex, beta1, beta2, options.lr(), options.weight_decay(), options.eps());
     } else {
-      _fused_tensor_adam(params_with_grad, grads, exp_avgs, max_exp_avg_sqs, state_steps,
+      _fused_tensor_adam(params_with_grad, grads, exp_avgs, exp_avg_sqs, max_exp_avg_sqs, state_steps,
 			 options.amsgrad(), has_complex, beta1, beta2, options.lr(), options.weight_decay(), options.eps());
     }
   }

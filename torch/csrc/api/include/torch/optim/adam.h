@@ -86,12 +86,12 @@ class TORCH_API Adam : public Optimizer {
  private:
 
   bool _init_group(OptimizerParamGroup& group,
-		   std::vector<Tensor>& params_with_grads,
-		   std::vector<Tensor>& grads,
-		   std::vector<Tensor>& exp_avgs,
-		   std::vector<Tensor>& exp_avg_sqs,
-		   std::vector<Tensor>& max_exp_avg_sqs,
-		   std::vector<Tensor>& state_steps);
+		   std::vector<std::optional<Tensor>>& params_with_grads,
+		   std::vector<std::optional<Tensor>>& grads,
+		   std::vector<std::optional<Tensor>>& exp_avgs,
+		   std::vector<std::optional<Tensor>>& exp_avg_sqs,
+		   std::vector<std::optional<Tensor>>& max_exp_avg_sqs,
+		   std::vector<std::optional<Tensor>>& state_steps);
   
   template <typename Self, typename Archive>
   static void serialize(Self& self, Archive& archive) {
