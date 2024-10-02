@@ -54,7 +54,7 @@ void _device_dtype_check_for_fused(const Tensor& param, bool cuda_unsupported = 
 }
 
 template<typename... StatesAndGrads>
-void _view_as_real(TensorList& params, StatesAndGrads... states_and_grads) {
+void _view_as_real(at::TensorList& params, StatesAndGrads... states_and_grads) {
   size_t pcount = params.size();
   for(size_t i=0; i<pcount; ++i) {
     if (params[i].is_complex()) {
