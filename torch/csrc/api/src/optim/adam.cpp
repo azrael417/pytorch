@@ -219,20 +219,17 @@ void _fused_tensor_adam(const std::vector<std::optional<Tensor>>& params,
   for (auto& [key, value]: grouped_tensors) {
     auto device_tensorlistlist = std::get<0>(value);
     auto device = std::get<0>(key);
-    auto device_params = device_tensorlistlist[0];
-    auto device_grads = device_tensorlistlist[1];
-    auto device_exp_avgs = device_tensorlistlist[2];
-    auto device_exp_avg_sqs = device_tensorlistlist[3];
-    auto device_max_exp_avg_sqs = device_tensorlistlist[4];
-    auto device_state_steps = device_tensorlistlist[5];
+    auto device_params = cast_to_tensorlist(device_tensorlistlist[0]);
+    auto device_grads = cast_to_tensorlist(device_tensorlistlist[1]);
+    auto device_exp_avgs = cast_to_tensorlist(device_tensorlistlist[2]);
+    auto device_exp_avg_sqs = cast_to_tensorlist(device_tensorlistlist[3]);
+    auto device_max_exp_avg_sqs = cast_to_tensorlist(device_tensorlistlist[4]);
+    auto device_state_steps = cast_to_tensorlist(device_tensorlistlist[5]);
 
     if(has_complex) {
-      device_params = torch::view_as_real(device_params);
-      device_grads = torch::view_as_real(device_grads);
-      device_exp_avgs = torch::view_as_real(device_exp_avgs);
-      device_exp_avg_sqs = torch::view_as_real(device_exp_avg_sqs);
+      _view_as_real(device_params, device_grads, device_exp_avgs, device_exp_avg_sqs);
       if(amsgrad) {
-	device_max_exp_avg_sqs = torch::view_as_real(device_max_exp_avg_sqs);
+	_view_as_real(device_params, device_grads, device_exp_avgs, device_exp_avg_sqs, device_max_exp_avg_sqs);
       }
     }
 

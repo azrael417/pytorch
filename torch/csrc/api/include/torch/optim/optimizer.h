@@ -46,6 +46,29 @@ void _device_dtype_check_for_fused(const Tensor& param, bool cuda_unsupported = 
   TORCH_CHECK(!supported, "`fused=True` requires all the params to be floating point Tensors of supported devices");
 }
 
+void _view_as_real(std::vector<Tensor>& params, std::vector<Tensor>&... state_and_grads) {
+  size_t pcount = params.size();
+  for(size_t i=0; i<pcount; ++i) {
+    if (torch::is_complex(params[i])) {
+      params[i] = torch::view_as_real(params[i]);
+      for (auto& state: state_and_grads) {
+	state[i] = torch::view_as_real(state[i]);
+      }
+    }
+  }
+}
+
+std::vector<Tensor> cast_to_tensorlist(const std::vector<std::optional<Tensor>>& tensorlist) {
+  std::vector<Tensor> tensorlist_out;
+  for(auto& opt_tensor: tensorlist) {
+    if (opt_tensor.has_value()) {
+      tensorlist_out.push_back(opt_tensor.value());
+    }
+  }
+  return tensorlist_out;
+}
+
+
 class TORCH_API OptimizerParamState {
  public:
   OptimizerParamState() = default;
