@@ -253,15 +253,15 @@ void _fused_tensor_adam(const std::vector<std::optional<Tensor>>& params,
 					 weight_decay,
 					 eps,
 					 false,
-					 std::nullopt,
-					 std::nullopt);
+					 {},
+					 {});
     } else if (devname == "cpu") {
       at::native::_fused_adam_kernel_cpu_(
 					  device_params,
 					  device_grads,
 					  device_exp_avgs,
 					  device_exp_avg_sqs,
-					  max_exp_avg_sqs,
+					  device_max_exp_avg_sqs,
 					  device_state_steps,
 					  lr,
 					  beta1,
@@ -269,8 +269,8 @@ void _fused_tensor_adam(const std::vector<std::optional<Tensor>>& params,
 					  weight_decay,
 					  eps,
 					  false,
-					  std::nullopt,
-					  std::nullopt);
+					  {},
+					  {});
     } else {
       TORCH_CHECK(false, "Adam does not support fusing on device " + devname + " yet");
     }
