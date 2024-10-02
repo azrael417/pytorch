@@ -252,7 +252,9 @@ void _fused_tensor_adam(const std::vector<std::optional<Tensor>>& params,
 					 beta2,
 					 weight_decay,
 					 eps,
-					 false);
+					 false,
+					 std::nullopt,
+					 std::nullopt);
     } else if (devname == "cpu") {
       at::native::_fused_adam_kernel_cpu_(
 					  device_params,
@@ -266,7 +268,9 @@ void _fused_tensor_adam(const std::vector<std::optional<Tensor>>& params,
 					  beta2,
 					  weight_decay,
 					  eps,
-					  false);
+					  false,
+					  std::nullopt,
+					  std::nullopt);
     } else {
       TORCH_CHECK(false, "Adam does not support fusing on device " + devname + " yet");
     }
