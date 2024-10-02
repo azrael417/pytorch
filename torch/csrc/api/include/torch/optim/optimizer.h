@@ -14,6 +14,13 @@
 #include <string>
 #include <vector>
 
+#ifndef AT_PER_OPERATOR_HEADERS
+#include <ATen/Functions.h>
+#include <ATen/NativeFunctions.h>
+#else
+#include <ATen/ops/view_as_real.h>
+#endif
+
 // Forward declarations confuse Doxygen
 #ifndef DOXYGEN_SHOULD_SKIP_THIS
 namespace at {
@@ -50,7 +57,7 @@ template<typename... StatesAndGrads>
 void _view_as_real(std::vector<Tensor>& params, StatesAndGrads... states_and_grads) {
   size_t pcount = params.size();
   for(size_t i=0; i<pcount; ++i) {
-    if (torch::is_complex(params[i])) {
+    if (params[i].is_complex()) {
       params[i] = at::view_as_real(params[i]);
       for (auto& state: {states_and_grads...}) {
 	state[i] = at::view_as_real(state[i]);
