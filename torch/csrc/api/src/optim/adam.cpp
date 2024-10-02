@@ -235,7 +235,7 @@ void _fused_tensor_adam(const std::vector<std::optional<Tensor>>& params,
 
     // increase state steps:
     for(auto& device_state_step: device_state_steps) {
-      device_state_step += 1;
+      device_state_step.add_(1);
     }
     auto lr_tensor = torch::tensor({lr}, TensorOptions().device(device).dtype(torch::kDouble));
 
