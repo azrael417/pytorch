@@ -51,7 +51,7 @@ void _view_as_real(std::vector<Tensor>& params, std::vector<Tensor>&... state_an
   for(size_t i=0; i<pcount; ++i) {
     if (torch::is_complex(params[i])) {
       params[i] = torch::view_as_real(params[i]);
-      for (auto& state: state_and_grads) {
+      for (auto& state: {state_and_grads...}) {
 	state[i] = torch::view_as_real(state[i]);
       }
     }
