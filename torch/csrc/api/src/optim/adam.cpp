@@ -95,7 +95,7 @@ bool Adam::_init_group(OptimizerParamGroup& group,
     if (!p.grad().defined()) {
       continue;
     }
-    has_complex |= torch::is_complex(p);
+    has_complex |= p.is_complex();
 
     params_with_grads.push_back(p);
     TORCH_CHECK(!p.grad().is_sparse(), "Adam does not support sparse gradients" /*, please consider SparseAdam instead*/);
@@ -239,7 +239,7 @@ void _fused_tensor_adam(const std::vector<std::optional<Tensor>>& params,
     }
     auto lr_tensor = torch::tensor({lr}, TensorOptions().device(device).dtype(torch::kDouble));
 
-    if (device.type == "cuda") {
+    if (device.type() == "cuda") {
       at::native::_fused_adam_cuda_impl_(
 					 device_params,
 					 device_grads,
@@ -252,7 +252,7 @@ void _fused_tensor_adam(const std::vector<std::optional<Tensor>>& params,
 					 weight_decay,
 					 eps,
 					 false);
-    } else if (device.type == "cpu") {
+    } else if (device.type() == "cpu") {
       at::native::_fused_adam_kernel_cpu_(
 					  device_params,
 					  device_grads,
