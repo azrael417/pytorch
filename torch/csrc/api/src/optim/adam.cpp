@@ -146,8 +146,8 @@ bool Adam::_init_group(OptimizerParamGroup& group,
   return has_complex;
 }
   
-void _single_tensor_adam(const std::vector<std::optional<Tensor>>& params_with_grad,
-			 const std::vector<std::optional<Tensor>>& grads,
+void _single_tensor_adam(std::vector<std::optional<Tensor>>& params_with_grad,
+			 std::vector<std::optional<Tensor>>& grads,
 			 std::vector<std::optional<Tensor>>& exp_avgs,
 			 std::vector<std::optional<Tensor>>& exp_avg_sqs,
 			 std::vector<std::optional<Tensor>>& max_exp_avg_sqs,
@@ -199,8 +199,8 @@ void _single_tensor_adam(const std::vector<std::optional<Tensor>>& params_with_g
 }      
 
 
-void _fused_tensor_adam(const std::vector<std::optional<Tensor>>& params,
-                        const std::vector<std::optional<Tensor>>& grads,
+void _fused_tensor_adam(std::vector<std::optional<Tensor>>& params,
+                        std::vector<std::optional<Tensor>>& grads,
                         std::vector<std::optional<Tensor>>& exp_avgs,
                         std::vector<std::optional<Tensor>>& exp_avg_sqs,
                         std::vector<std::optional<Tensor>>& max_exp_avg_sqs,
