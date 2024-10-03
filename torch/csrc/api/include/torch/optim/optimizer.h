@@ -14,6 +14,13 @@
 #include <string>
 #include <vector>
 
+#ifndef AT_PER_OPERATOR_HEADERS
+#include <ATen/Functions.h>
+#include <ATen/NativeFunctions.h>
+#else
+#include <ATen/ops/view_as_real.h>
+#endif
+
 // Forward declarations confuse Doxygen
 #ifndef DOXYGEN_SHOULD_SKIP_THIS
 namespace at {
