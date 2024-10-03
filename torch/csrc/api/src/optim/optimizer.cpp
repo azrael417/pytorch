@@ -7,9 +7,41 @@
 #include <utility>
 #include <vector>
 
+#ifndef AT_PER_OPERATOR_HEADERS
+#include <ATen/Functions.h>
+#include <ATen/NativeFunctions.h>
+#else
+#include <ATen/ops/view_as_real.h>
+#endif
+
 namespace torch {
 namespace optim {
 
+
+void _device_dtype_check_for_fused(const Tensor& param, bool cuda_unsupported) {
+  std::vector<std::string> supported_devices = {"mps", "xpu", "cpu"};
+  if (!cuda_unsupported) {
+    supported_devices.push_back("cuda");
+  }
+
+  bool supported = param.is_floating_point();
+  auto pdevice = c10::DeviceTypeName(param.device().type(), true);
+  auto has_device = [&pdevice](std::string dev) { return dev == pdevice; };
+  supported |= (std::find_if(supported_devices.begin(), supported_devices.end(), has_device) != supported_devices.end());
+
+  TORCH_CHECK(!supported, "`fused=True` requires all the params to be floating point Tensors of supported devices");
+}
+
+std::vector<Tensor> cast_to_tensorlist(const std::vector<std::optional<Tensor>>& tensorlist) {
+  std::vector<at::Tensor> tmpout;
+  for(auto& opt_tensor: tensorlist) {
+    if (opt_tensor.has_value()) {
+      tmpout.push_back(opt_tensor.value());
+    }
+  }
+  return tmpout;
+}
+  
 bool OptimizerParamGroup::has_options() const {
   return options_ != nullptr;
 }

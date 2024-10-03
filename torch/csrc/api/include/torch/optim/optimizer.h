@@ -14,13 +14,6 @@
 #include <string>
 #include <vector>
 
-#ifndef AT_PER_OPERATOR_HEADERS
-#include <ATen/Functions.h>
-#include <ATen/NativeFunctions.h>
-#else
-#include <ATen/ops/view_as_real.h>
-#endif
-
 // Forward declarations confuse Doxygen
 #ifndef DOXYGEN_SHOULD_SKIP_THIS
 namespace at {
@@ -39,19 +32,7 @@ class InputArchive;
 namespace torch {
 namespace optim {
 
-void _device_dtype_check_for_fused(const Tensor& param, bool cuda_unsupported = false) {
-  std::vector<std::string> supported_devices = {"mps", "xpu", "cpu"};
-  if (!cuda_unsupported) {
-    supported_devices.push_back("cuda");
-  }
-
-  bool supported = param.is_floating_point();
-  auto pdevice = c10::DeviceTypeName(param.device().type(), true);
-  auto has_device = [&pdevice](std::string dev) { return dev == pdevice; };
-  supported |= (std::find_if(supported_devices.begin(), supported_devices.end(), has_device) != supported_devices.end());
-
-  TORCH_CHECK(!supported, "`fused=True` requires all the params to be floating point Tensors of supported devices");
-}
+void _device_dtype_check_for_fused(const Tensor& param, bool cuda_unsupported = false);
 
 template<typename... StatesAndGrads>
 void _view_as_real(std::vector<Tensor>& params, StatesAndGrads&&... states_and_grads) {
@@ -59,24 +40,12 @@ void _view_as_real(std::vector<Tensor>& params, StatesAndGrads&&... states_and_g
   for(size_t i=0; i<pcount; ++i) {
     if (params[i].is_complex()) {
       params[i] = at::view_as_real(params[i]);
-      //for (auto& state: {std::forward<StatesAndGrads>(states_and_grads)...}) {
-      //state[i] = at::view_as_real(state[i]);
-      //}
       (..., (states_and_grads[i] = at::view_as_real(states_and_grads[i])));
     }
   }
 }
 
-std::vector<Tensor> cast_to_tensorlist(const std::vector<std::optional<Tensor>>& tensorlist) {
-  std::vector<at::Tensor> tmpout;
-  for(auto& opt_tensor: tensorlist) {
-    if (opt_tensor.has_value()) {
-      tmpout.push_back(opt_tensor.value());
-    }
-  }
-  return tmpout;
-}
-
+std::vector<Tensor> cast_to_tensorlist(const std::vector<std::optional<Tensor>>& tensorlist);
 
 class TORCH_API OptimizerParamState {
  public:
