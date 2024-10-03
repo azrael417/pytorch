@@ -59,9 +59,10 @@ void _view_as_real(std::vector<Tensor>& params, StatesAndGrads&&... states_and_g
   for(size_t i=0; i<pcount; ++i) {
     if (params[i].is_complex()) {
       params[i] = at::view_as_real(params[i]);
-      for (auto& state: {std::forward<StatesAndGrads>(states_and_grads)...}) {
-	state[i] = at::view_as_real(state[i]);
-      }
+      //for (auto& state: {std::forward<StatesAndGrads>(states_and_grads)...}) {
+      //state[i] = at::view_as_real(state[i]);
+      //}
+      (..., (states_and_grads[i] = at::view_as_real(states_and_grads[i])));
     }
   }
 }
