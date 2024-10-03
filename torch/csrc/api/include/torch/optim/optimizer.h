@@ -54,26 +54,26 @@ void _device_dtype_check_for_fused(const Tensor& param, bool cuda_unsupported = 
 }
 
 template<typename... StatesAndGrads>
-void _view_as_real(at::TensorList& params, StatesAndGrads&... states_and_grads) {
+void _view_as_real(std::vector<Tensor>& params, StatesAndGrads&... states_and_grads) {
   size_t pcount = params.size();
   for(size_t i=0; i<pcount; ++i) {
     if (params[i].is_complex()) {
-      params[i] = std::forward<Tensor>(at::view_as_real(params[i]));
+      params[i] = at::view_as_real(params[i]);
       for (auto& state: {states_and_grads...}) {
-	state[i] = std::forward<Tensor>(at::view_as_real(state[i]));
+	state[i] = at::view_as_real(state[i]);
       }
     }
   }
 }
 
-at::TensorList cast_to_tensorlist(const std::vector<std::optional<Tensor>>& tensorlist) {
+std::vector<Tensor> cast_to_tensorlist(const std::vector<std::optional<Tensor>>& tensorlist) {
   std::vector<at::Tensor> tmpout;
   for(auto& opt_tensor: tensorlist) {
     if (opt_tensor.has_value()) {
       tmpout.push_back(opt_tensor.value());
     }
   }
-  return at::TensorList(tmpout);
+  return tmpout;
 }
 
 
