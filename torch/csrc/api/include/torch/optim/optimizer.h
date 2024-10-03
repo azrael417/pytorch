@@ -58,9 +58,9 @@ void _view_as_real(at::TensorList& params, StatesAndGrads&... states_and_grads) 
   size_t pcount = params.size();
   for(size_t i=0; i<pcount; ++i) {
     if (params[i].is_complex()) {
-      params[i] = at::view_as_real(params[i]);
+      params[i] = std::move(at::view_as_real(params[i]));
       for (auto& state: {states_and_grads...}) {
-	state[i] = at::view_as_real(state[i]);
+	state[i] = std::move(at::view_as_real(state[i]));
       }
     }
   }
