@@ -21,7 +21,9 @@
 #include <ATen/ops/_fused_adam.h>
 #include <ATen/ops/_fused_adam_native.h>
 #endif
+#ifdef USE_CUDA
 #include <ATen/native/cuda/fused_adam_impl.cuh>
+#endif
 
 namespace torch {
 namespace optim {
@@ -240,7 +242,24 @@ void _fused_tensor_adam(std::vector<std::optional<Tensor>>& params,
     auto lr_tensor = torch::tensor({lr}, TensorOptions().device(device).dtype(torch::kDouble));
 
     auto devname = c10::DeviceTypeName(device.type(), true);
-    if (devname == "cuda") {
+    if (devname == "cpu") {
+      at::native::_fused_adam_kernel_cpu_(
+                                          at::TensorList(device_params),
+                                          at::TensorList(device_grads),
+                                          at::TensorList(device_exp_avgs),
+                                          at::TensorList(device_exp_avg_sqs),
+                                          at::TensorList(device_max_exp_avg_sqs),
+                                          at::TensorList(device_state_steps),
+                                          lr,
+                                          beta1,
+                                          beta2,
+                                          weight_decay,
+                                          eps,
+                                          false,
+                                          {},
+                                          {});
+#ifdef USE_CUDA
+    } else if (devname == "cuda") {
       at::native::_fused_adam_cuda_impl_(
 					 at::TensorList(device_params),
 					 at::TensorList(device_grads),
@@ -255,22 +274,7 @@ void _fused_tensor_adam(std::vector<std::optional<Tensor>>& params,
 					 false,
 					 {},
 					 {});
-    } else if (devname == "cpu") {
-      at::native::_fused_adam_kernel_cpu_(
-					  at::TensorList(device_params),
-					  at::TensorList(device_grads),
-					  at::TensorList(device_exp_avgs),
-					  at::TensorList(device_exp_avg_sqs),
-					  at::TensorList(device_max_exp_avg_sqs),
-					  at::TensorList(device_state_steps),
-					  lr,
-					  beta1,
-					  beta2,
-					  weight_decay,
-					  eps,
-					  false,
-					  {},
-					  {});
+#endif
     } else {
       TORCH_CHECK(false, "Adam does not support fusing on device " + devname + " yet");
     }
