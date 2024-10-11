@@ -289,8 +289,6 @@ Tensor Adam::step(LossClosure closure) {
     at::AutoGradMode enable_grad(true);
     loss = closure();
   }
-
-  std::cout << "PERFORMING A STEP WITH MY TWEAKED ADAM" << std::endl;
   
   for (auto& group : param_groups_) {
 
