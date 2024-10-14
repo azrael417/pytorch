@@ -114,7 +114,12 @@ bool Adam::_init_group(OptimizerParamGroup& group,
 	// check if device and datatype are supported
 	_device_dtype_check_for_fused(p);
       }
-      state->step(0);
+      if (options.fused()) {
+	steptens = torch::zeros(1, TensorOptions().device(p.device()).dtype(torch::kFloat32));
+      } else {
+	steptens = torch::zeros(1, TensorOptions().dtype(torch::kLong));
+      }
+      state->step(steptens);
       // Exponential moving average of gradient values
       state->exp_avg(torch::zeros_like(p, MemoryFormat::Preserve));
       // Exponential moving average of squared gradient values
@@ -136,13 +141,15 @@ bool Adam::_init_group(OptimizerParamGroup& group,
        max_exp_avg_sqs.push_back(state.max_exp_avg_sq());
      }
 
-     torch::Tensor steptens;
-     if (options.fused()) {
-       steptens = torch::tensor({state.step()}, TensorOptions().device(p.device()).dtype(torch::kFloat32));
-     } else {
-       steptens = torch::tensor({state.step()}, TensorOptions().dtype(torch::kLong));
-     }
-     state_steps.push_back(steptens);
+     printf("ADAM STEP", state.step());
+     
+     //torch::Tensor steptens;
+     //if (options.fused()) {
+     //  steptens = torch::tensor({state.step()}, TensorOptions().device(p.device()).dtype(torch::kFloat32));
+     //} else {
+     //  steptens = torch::tensor({state.step()}, TensorOptions().dtype(torch::kLong));
+     //}
+     state_steps.push_back(state.step());
   }
 
   return has_complex;
@@ -243,6 +250,7 @@ void _fused_tensor_adam(std::vector<std::optional<Tensor>>& params,
 
     auto devname = c10::DeviceTypeName(device.type(), true);
     if (devname == "cpu") {
+      printf("ADAM CPU");
       at::native::_fused_adam_kernel_cpu_(
                                           at::TensorList(device_params),
                                           at::TensorList(device_grads),
@@ -260,6 +268,7 @@ void _fused_tensor_adam(std::vector<std::optional<Tensor>>& params,
                                           {});
 #ifdef USE_CUDA
     } else if (devname == "cuda") {
+      printf("ADAM CUDA");
       at::native::_fused_adam_cuda_impl_(
 					 at::TensorList(device_params),
 					 at::TensorList(device_grads),
@@ -301,9 +310,11 @@ Tensor Adam::step(LossClosure closure) {
     bool has_complex = _init_group(group, params_with_grad, grads, exp_avgs, exp_avg_sqs, max_exp_avg_sqs, state_steps);
     
     if (!options.fused()) {
+      printf("ADAM SINGLE TENSOR");
       _single_tensor_adam(params_with_grad, grads, exp_avgs, exp_avg_sqs, max_exp_avg_sqs, state_steps,
 			  options.amsgrad(), has_complex, beta1, beta2, options.lr(), options.weight_decay(), options.eps());
     } else {
+      printf("ADAM FUSED TENSOR");
       _fused_tensor_adam(params_with_grad, grads, exp_avgs, exp_avg_sqs, max_exp_avg_sqs, state_steps,
 			 options.amsgrad(), has_complex, beta1, beta2, options.lr(), options.weight_decay(), options.eps());
     }
