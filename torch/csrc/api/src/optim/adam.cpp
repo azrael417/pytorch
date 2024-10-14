@@ -64,7 +64,7 @@ void AdamOptions::set_lr(const double lr) {
 }
 
 bool operator==(const AdamParamState& lhs, const AdamParamState& rhs) {
-  return (lhs.step() == rhs.step()) &&
+  return (torch.equal(lhs.step(), rhs.step()) &&
       torch::equal(lhs.exp_avg(), rhs.exp_avg()) &&
       torch::equal(lhs.exp_avg_sq(), rhs.exp_avg_sq()) &&
       torch::equal_if_defined(lhs.max_exp_avg_sq(), rhs.max_exp_avg_sq());
@@ -78,7 +78,7 @@ void AdamParamState::serialize(torch::serialize::OutputArchive& archive) const {
 }
 
 void AdamParamState::serialize(torch::serialize::InputArchive& archive) {
-  _TORCH_OPTIM_DESERIALIZE_TORCH_ARG(int64_t, step);
+  _TORCH_OPTIM_DESERIALIZE_TORCH_ARG(Tensor, step);
   _TORCH_OPTIM_DESERIALIZE_TORCH_ARG(Tensor, exp_avg);
   _TORCH_OPTIM_DESERIALIZE_TORCH_ARG(Tensor, exp_avg_sq);
   _TORCH_OPTIM_DESERIALIZE_TORCH_ARG(Tensor, max_exp_avg_sq);

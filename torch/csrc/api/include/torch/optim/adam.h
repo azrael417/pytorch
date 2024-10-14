@@ -39,7 +39,7 @@ struct TORCH_API AdamOptions : public OptimizerCloneableOptions<AdamOptions> {
 
 struct TORCH_API AdamParamState
     : public OptimizerCloneableParamState<AdamParamState> {
-  TORCH_ARG(int64_t, step) = 0;
+  TORCH_ARG(torch::Tensor, step);
   TORCH_ARG(torch::Tensor, exp_avg);
   TORCH_ARG(torch::Tensor, exp_avg_sq);
   TORCH_ARG(torch::Tensor, max_exp_avg_sq) = {};
