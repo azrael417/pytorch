@@ -64,7 +64,7 @@ void AdamOptions::set_lr(const double lr) {
 }
 
 bool operator==(const AdamParamState& lhs, const AdamParamState& rhs) {
-  return (torch.equal(lhs.step(), rhs.step()) &&
+  return (torch::equal(lhs.step(), rhs.step()) &&
       torch::equal(lhs.exp_avg(), rhs.exp_avg()) &&
       torch::equal(lhs.exp_avg_sq(), rhs.exp_avg_sq()) &&
       torch::equal_if_defined(lhs.max_exp_avg_sq(), rhs.max_exp_avg_sq());
