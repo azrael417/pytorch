@@ -651,7 +651,7 @@ TEST(SerializeTest, Optim_Adam) {
   };
   step(optim1, model1);
 
-  std::vector<int64_t> step_buffers;
+  std::vector<at::Tensor> step_buffers;
   std::vector<at::Tensor> exp_average_buffers;
   std::vector<at::Tensor> exp_average_sq_buffers;
   std::vector<at::Tensor> max_exp_average_sq_buffers;
