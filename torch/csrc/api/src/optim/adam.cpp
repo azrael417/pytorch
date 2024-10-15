@@ -143,7 +143,7 @@ bool Adam::_init_group(OptimizerParamGroup& group,
        max_exp_avg_sqs.push_back(state.max_exp_avg_sq());
      }
 
-     printf("ADAM STEP", state.step());
+     std::cout << "ADAM STEP " << state.step() << std::endl;
      
      //torch::Tensor steptens;
      //if (options.fused()) {
@@ -337,7 +337,7 @@ void Adam::load(serialize::InputArchive& archive) {
     TORCH_WARN(
         "Your serialized Adam optimizer is still using the old serialization format. "
         "You should re-save your Adam optimizer to use the new serialization format.");
-    std::vector<int64_t> step_buffers;
+    std::vector<at::Tensor> step_buffers;
     std::vector<at::Tensor> exp_average_buffers;
     std::vector<at::Tensor> exp_average_sq_buffers;
     std::vector<at::Tensor> max_exp_average_sq_buffers;
