@@ -114,6 +114,8 @@ bool Adam::_init_group(OptimizerParamGroup& group,
 	// check if device and datatype are supported
 	_device_dtype_check_for_fused(p);
       }
+
+      torch::Tensor steptens;
       if (options.fused()) {
 	steptens = torch::zeros(1, TensorOptions().device(p.device()).dtype(torch::kFloat32));
       } else {
