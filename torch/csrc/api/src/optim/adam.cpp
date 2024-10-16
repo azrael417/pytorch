@@ -142,8 +142,6 @@ bool Adam::_init_group(OptimizerParamGroup& group,
      if (options.amsgrad()) {
        max_exp_avg_sqs.push_back(state.max_exp_avg_sq());
      }
-
-     std::cout << "ADAM STEP " << state.step() << std::endl;
      
      //torch::Tensor steptens;
      //if (options.fused()) {
@@ -252,7 +250,7 @@ void _fused_tensor_adam(std::vector<std::optional<Tensor>>& params,
 
     auto devname = c10::DeviceTypeName(device.type(), true);
     if (devname == "cpu") {
-      printf("ADAM CPU");
+      printf("ADAM FUSED CPU\n");
       at::native::_fused_adam_kernel_cpu_(
                                           at::TensorList(device_params),
                                           at::TensorList(device_grads),
@@ -270,7 +268,7 @@ void _fused_tensor_adam(std::vector<std::optional<Tensor>>& params,
                                           {});
 #ifdef USE_CUDA
     } else if (devname == "cuda") {
-      printf("ADAM CUDA");
+      printf("ADAM FUSED CUDA\n");
       at::native::_fused_adam_cuda_impl_(
 					 at::TensorList(device_params),
 					 at::TensorList(device_grads),
@@ -312,11 +310,9 @@ Tensor Adam::step(LossClosure closure) {
     bool has_complex = _init_group(group, params_with_grad, grads, exp_avgs, exp_avg_sqs, max_exp_avg_sqs, state_steps);
     
     if (!options.fused()) {
-      printf("ADAM SINGLE TENSOR");
       _single_tensor_adam(params_with_grad, grads, exp_avgs, exp_avg_sqs, max_exp_avg_sqs, state_steps,
 			  options.amsgrad(), has_complex, beta1, beta2, options.lr(), options.weight_decay(), options.eps());
     } else {
-      printf("ADAM FUSED TENSOR");
       _fused_tensor_adam(params_with_grad, grads, exp_avgs, exp_avg_sqs, max_exp_avg_sqs, state_steps,
 			 options.amsgrad(), has_complex, beta1, beta2, options.lr(), options.weight_decay(), options.eps());
     }
@@ -350,7 +346,7 @@ void Adam::load(serialize::InputArchive& archive) {
         archive, "max_exp_average_sq_buffers", max_exp_average_sq_buffers);
     // since there were no param_groups prior to version 1.5.0, assuming all
     // tensors are now in one param_group
-    std::vector<Tensor> params = param_groups_.at(0).params();
+    std::vector<at::Tensor> params = param_groups_.at(0).params();
     for (const auto idx : c10::irange(step_buffers.size())) {
       auto state = std::make_unique<AdamParamState>();
       state->step(step_buffers.at(idx));
