@@ -249,6 +249,7 @@ void _fused_tensor_adam(std::vector<std::optional<Tensor>>& params,
     auto lr_tensor = torch::tensor({lr}, TensorOptions().device(device).dtype(torch::kDouble));
 
     auto devname = c10::DeviceTypeName(device.type(), true);
+    std::cout << "ADAM " << devname << std::endl;
     if (devname == "cpu") {
       printf("ADAM FUSED CPU\n");
       at::native::_fused_adam_kernel_cpu_(
@@ -308,6 +309,8 @@ Tensor Adam::step(LossClosure closure) {
     auto beta2 = std::get<1>(options.betas());
     
     bool has_complex = _init_group(group, params_with_grad, grads, exp_avgs, exp_avg_sqs, max_exp_avg_sqs, state_steps);
+
+    std::cout << "ADAM is fused " << options.fused() << std::endl;
     
     if (!options.fused()) {
       _single_tensor_adam(params_with_grad, grads, exp_avgs, exp_avg_sqs, max_exp_avg_sqs, state_steps,
