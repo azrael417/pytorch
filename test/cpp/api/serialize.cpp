@@ -211,6 +211,14 @@ void write_step_buffers(
   write_tensors_to_archive(archive, key, tensors);
 }
 
+void write_step_buffers(
+    torch::serialize::OutputArchive& archive,
+    const std::string& key,
+    const std::vector<torch::Tensor>& steps) {
+  write_tensors_to_archive(archive, key, steps);
+}
+
+
 #define OLD_SERIALIZATION_LOGIC_WARNING_CHECK(funcname, optimizer, filename) \
   {                                                                          \
     WarningCapture warnings;                                                 \
