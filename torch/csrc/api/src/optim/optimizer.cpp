@@ -30,7 +30,7 @@ void _device_dtype_check_for_fused(const Tensor& param, bool cuda_unsupported) {
   auto device_is_supported = (std::find_if(supported_devices.begin(), supported_devices.end(), has_device) != supported_devices.end());
   supported &= device_is_supported;
 
-  std::cout << "pdevice " << pdevice << " device is supported " << device_is_supported << " cuda is not supported " << cuda_unsupported << std::endl; 
+  std::cout << "param is floating point " << param.is_floating_point() << " pdevice " << pdevice << " device is supported " << device_is_supported << " cuda is not supported " << cuda_unsupported << std::endl; 
   
   TORCH_CHECK(!supported, "`fused=True` requires all the params to be floating point Tensors of supported devices");
 }
