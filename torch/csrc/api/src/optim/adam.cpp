@@ -112,7 +112,11 @@ bool Adam::_init_group(OptimizerParamGroup& group,
 
       if (options.fused()) {
 	// check if device and datatype are supported
-	_device_dtype_check_for_fused(p);
+#ifdef USE_CUDA
+	_device_dtype_check_for_fused(p, false);
+#else
+	_device_dtype_check_for_fused(p, true);
+#endif
       }
 
       torch::Tensor steptens;

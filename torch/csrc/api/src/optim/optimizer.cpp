@@ -27,8 +27,11 @@ void _device_dtype_check_for_fused(const Tensor& param, bool cuda_unsupported) {
   bool supported = param.is_floating_point();
   auto pdevice = c10::DeviceTypeName(param.device().type(), true);
   auto has_device = [&pdevice](std::string dev) { return dev == pdevice; };
-  supported |= (std::find_if(supported_devices.begin(), supported_devices.end(), has_device) != supported_devices.end());
+  auto device_is_supported = (std::find_if(supported_devices.begin(), supported_devices.end(), has_device) != supported_devices.end());
+  supported &= device_is_supported;
 
+  std::cout << "pdevice " << pdevice << " device is supported " << device_is_supported << " cuda is not supported " << cuda_unsupported << std::endl; 
+  
   TORCH_CHECK(!supported, "`fused=True` requires all the params to be floating point Tensors of supported devices");
 }
 
